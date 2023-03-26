@@ -1,5 +1,6 @@
 # MacTrack: Whole-Body Pose Tracking for Multiple Socializing Non-Human Primates
 *Project under development*
+
 MacTrack is an open-source project that provides a foundation model and large-scale dataset for whole-body pose tracking of multiple socializing non-human primates. This tool is designed for use by primatologists, neuroscientists, ethologists, and other researchers interested in quantifying natural primate behavior.
 
 The MacTrack dataset includes annotated video recordings of socializing non-human primates engaged in a variety of behaviors, such as grooming, playing, and socializing. The dataset is suitable for training and testing whole-body pose tracking models and can be used to develop and validate new methods for analyzing primate behavior.

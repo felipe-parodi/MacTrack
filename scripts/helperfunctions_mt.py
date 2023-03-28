@@ -1,37 +1,12 @@
 import os
 import re
 
+import numpy as np
 import yaml
 import yaml.constructor
 
-class OpenCVMatrixConstructor(yaml.constructor.SafeConstructor):
-    def construct_opencv_matrix(self, node):
-        # Parse the YAML node into a Python dict
-        data = self.construct_yaml_map(node)
-
-        # Extract the matrix dimensions and data type
-        rows = int(data["rows"])
-        cols = int(data["cols"])
-        dtype = data["dt"]
-
-        # Extract the matrix data as a flat list of strings
-        data_str = data["data"].replace("\n", " ")
-        data_list = re.split(r"\s+", data_str.strip())
-
-        # Convert the data to the appropriate data type
-        if dtype == "d":
-            data = [float(x) for x in data_list]
-        elif dtype == "f":
-            data = [float(x) for x in data_list]
-        elif dtype == "i":
-            data = [int(x) for x in data_list]
-        else:
-            raise ValueError(f"Unsupported dtype: {dtype}")
-
-        # Reshape the data into a matrix
-        matrix = [data[i : i + cols] for i in range(0, len(data), cols)]
-
-        return matrix
+CAMERA_RESOLUTION = [1920, 1080]
+CAMERA_TYPE = "rgb"
 
 
 def convert_yaml_to_json(yaml_file):
@@ -51,37 +26,21 @@ def convert_yaml_to_json(yaml_file):
         # Remove the opencv-matrix tag
         yaml_str = yaml_str.replace("!!opencv-matrix", "")
 
-        # Parse the YAML data using the custom constructor
-        loader = yaml.SafeLoader(yaml_str)
-        loader.add_constructor(
-            "!<tag:yaml.org,2002:opencv-matrix>",
-            OpenCVMatrixConstructor.construct_opencv_matrix,
-        )
-        data = loader.get_single_data()
-
-    # Extract the matrix dimensions and data type
-    rows = int(data["intrinsicMatrix"]["rows"])
-    cols = int(data["intrinsicMatrix"]["cols"])
-    dtype = data["intrinsicMatrix"]["dt"]
-
-    # Extract the matrix data as a list of lists
-    matrix_data = [float(x) for x in data["intrinsicMatrix"]["data"]]
-    matrix = [matrix_data[i : i + cols] for i in range(0, len(matrix_data), cols)]
-
-    # Convert the YAML data to a JSON dictionary
+        data = yaml.safe_load(yaml_str)
+    K = np.array(data["intrinsicMatrix"]["data"]).reshape((3, 3), order="F")
+    distCoef = np.array(data["distortionCoefficients"]["data"]).reshape(
+        (1, 5), order="F"
+    )
+    rotation = np.array(data["R"]["data"]).reshape((3, 3), order="F")
+    translation = np.array(data["T"]["data"]).reshape((3, 1), order="F")
     json_data = {}
     json_data["name"] = os.path.basename(yaml_file).split(".")[0]
     json_data["type"] = CAMERA_TYPE
     json_data["resolution"] = CAMERA_RESOLUTION
-    json_data["K"] = matrix
-    json_data["distCoef"] = data["distortionCoefficients"]["data"]
-    # json_data["R"] = data["R"]["data"]
-    json_data["R"] = [
-        [data["R"]["data"][0], data["R"]["data"][1], data["R"]["data"][2]],
-        [data["R"]["data"][3], data["R"]["data"][4], data["R"]["data"][5]],
-        [data["R"]["data"][6], data["R"]["data"][7], data["R"]["data"][8]],
-    ]
-    json_data["t"] = data["T"]["data"]
+    json_data["K"] = K.tolist()
+    json_data["distCoef"] = distCoef.tolist()
+    json_data["R"] = rotation.tolist()
+    json_data["T"] = translation.tolist()
 
     return json_data
 

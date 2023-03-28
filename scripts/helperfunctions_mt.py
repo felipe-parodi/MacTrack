@@ -4,10 +4,6 @@ import re
 import yaml
 import yaml.constructor
 
-CAMERA_RESOLUTION = [1920, 1080]
-CAMERA_TYPE = "rgb"
-
-
 class OpenCVMatrixConstructor(yaml.constructor.SafeConstructor):
     def construct_opencv_matrix(self, node):
         # Parse the YAML node into a Python dict

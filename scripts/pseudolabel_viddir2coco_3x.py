@@ -13,7 +13,6 @@ import cv2
 import mmcv
 import numpy as np
 from mmdet.apis import inference_detector, init_detector
-# from mmdet.registry import VISUALIZERS
 from mmpose.apis import inference_topdown
 from mmpose.apis import init_model as init_pose_estimator
 from mmpose.evaluation.functional import nms
@@ -67,7 +66,7 @@ def main():
     pose_config = "C:\\Users\\Felipe Parodi\\Documents\\felipe_code\\MacTrack\\scripts\\pose_pseudolabel_230612\\hrnet_w48_macaque_256x192_3x.py"
     pose_checkpoint = "https://download.openmmlab.com/mmpose/animal/hrnet/hrnet_w48_macaque_256x192-9b34b02a_20210407.pth"
 
-    print(f"Output json file: {out_json_file}. \n Initializing NHP detection and pose estimation models ...")
+    print(f"Output json file: {out_json_file}. \a\n Initializing NHP detection and pose estimation models ...")
     det_model = init_detector(det_config, det_checkpoint, device=device)
     det_model.cfg = adapt_mmdet_pipeline(det_model.cfg)
     pose_estimator = init_pose_estimator(pose_config, pose_checkpoint, device=device)
@@ -91,7 +90,7 @@ def main():
     uniq_id_list = []
     frame_id_uniq_counter = 0
     ann_uniq_id, checkpoint_count = int(0), int(0)
-    id_pool = np.arange(0, 200000000)
+    id_pool = np.arange(0, 200_000)
     np.random.shuffle(id_pool)
     for vid_idx, vid in enumerate(video_list):
         if not vid.endswith((".mp4", ".avi")):

@@ -53,7 +53,7 @@ def main():
     bbox_thr = args.bbox_thr
     checkpoint_interval = args.checkpoint_interval
     device = args.device
-    keypoint_thr = 0.3
+    keypoint_thr = 0.47
     min_num_keypoints_desired = 11
 
     os.makedirs(out_dir, exist_ok=True)

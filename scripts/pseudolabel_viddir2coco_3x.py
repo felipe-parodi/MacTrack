@@ -153,6 +153,7 @@ def main():
             for bbox, score, label, kpts, kpts_scores in zip(
                 bboxes, scores, labels, keypoints, keypoint_scores
             ):
+                visible_keypoints = 0
                 if score < bbox_thr:
                     continue
                 bbox_top_left_x, bbox_top_left_y = bbox[0], bbox[1]

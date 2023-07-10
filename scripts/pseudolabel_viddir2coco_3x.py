@@ -54,7 +54,7 @@ def main():
     checkpoint_interval = args.checkpoint_interval
     device = args.device
     keypoint_thr = 0.47
-    min_num_keypoints_desired = 11
+    min_num_keypoints_desired = 12
 
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(out_dir + "/imgs", exist_ok=True)
@@ -99,14 +99,12 @@ def main():
     np.random.shuffle(id_pool)
     
     for vid_idx, vid in enumerate(tqdm(video_list)):
-    # for vid_idx, vid in enumerate(video_list):
         if not vid.endswith((".mp4", ".avi")):
             continue
         video = mmcv.VideoReader(vid_dir + vid)
         print(f'\nStarting inference on {vid}.')
 
         for frame_id, cur_frame in enumerate(tqdm(video)):
-        # for frame_id, cur_frame in enumerate(video):
 
             detection_results = inference_detector(det_model, cur_frame)
 
@@ -219,8 +217,6 @@ def main():
                         "category_id": 1,
                         "id": int(ann_uniq_id),
                     }
-                    # for key, value in annotations.items():
-                    #     print(f"{key}: {type(value)}")
                     annotations_list.append(annotations)
 
             if len(annotations_list) == len(bboxes):
@@ -234,8 +230,6 @@ def main():
                 annotations_added = True        
             visible_keypoints = 0
             if annotations_added:
-                # for key, value in images.items():
-                #     print(f"{key}: {type(value)}")
                 img_anno_dict['images'].append(images)
 
         if (vid_idx + 1) % checkpoint_interval == 0:

@@ -13,7 +13,7 @@ import cv2
 import mmcv
 import numpy as np
 from mmdet.apis import inference_detector, init_detector
-from mmdet.registry import VISUALIZERS
+# from mmdet.registry import VISUALIZERS
 from mmpose.apis import inference_topdown
 from mmpose.apis import init_model as init_pose_estimator
 from mmpose.evaluation.functional import nms
@@ -22,7 +22,6 @@ from mmpose.structures import merge_data_samples, split_instances
 from mmpose.utils import adapt_mmdet_pipeline
 
 start_time = time.time()
-
 
 def save_checkpoint(img_anno_dict, out_json_file, checkpoint_count):
     checkpoint_file = out_json_file.replace(
@@ -62,17 +61,15 @@ def main():
     os.makedirs(out_dir + "/annotations", exist_ok=True)
 
     out_json_file = out_dir + "/annotations/enclosure_pose_labels.json"
-    print(out_json_file)
 
     det_config = "C:\\Users\\Felipe Parodi\\Documents\\felipe_code\\MacTrack\\scripts\\pose_pseudolabel_230612\\fasterrcnn_2classdet_mt_3x.py"
     det_checkpoint = "Y:\\MacTrack\\results\\mactrack_detection\\fasterrcnn2class_best_bbox_mAP_epoch_50.pth"
     pose_config = "C:\\Users\\Felipe Parodi\\Documents\\felipe_code\\MacTrack\\scripts\\pose_pseudolabel_230612\\hrnet_w48_macaque_256x192_3x.py"
     pose_checkpoint = "https://download.openmmlab.com/mmpose/animal/hrnet/hrnet_w48_macaque_256x192-9b34b02a_20210407.pth"
 
-    print("Initializing detection model ...")
+    print(f"Output json file: {out_json_file}. \n Initializing NHP detection and pose estimation models ...")
     det_model = init_detector(det_config, det_checkpoint, device=device)
     det_model.cfg = adapt_mmdet_pipeline(det_model.cfg)
-    print("Initializing pose model ...")
     pose_estimator = init_pose_estimator(pose_config, pose_checkpoint, device=device)
     pose_estimator.cfg.visualizer.radius = 4
     pose_estimator.cfg.visualizer.alpha = 0.8
@@ -81,7 +78,6 @@ def main():
     visualizer.set_dataset_meta(
         pose_estimator.dataset_meta, skeleton_style=pose_estimator.cfg.skeleton_style
     )
-    print("Successfully initialized models.")
     categories = [{"id": 1, "name": "monkey", "supercategory": "monkey"}]
 
     img_anno_dict = {
@@ -90,25 +86,20 @@ def main():
         "annotations": [],
     }
 
-    print("Loading videos ...")
     video_list = os.listdir(vid_dir)
-    print("Total number of videos: ", len(video_list))
+    print(f"Successfully initialized models. Now loading {len(video_list)} videos ...")
     uniq_id_list = []
     frame_id_uniq_counter = 0
-    ann_uniq_id = int(0)
-    checkpoint_count = int(0)
-
+    ann_uniq_id, checkpoint_count = int(0), int(0)
+    id_pool = np.arange(0, 200000000)
+    np.random.shuffle(id_pool)
     for vid_idx, vid in enumerate(video_list):
         if not vid.endswith((".mp4", ".avi")):
             continue
         video = mmcv.VideoReader(vid_dir + vid)
         print(vid)
 
-        extracted_frames_count = 0
-
         for frame_id, cur_frame in enumerate(video):
-            # if frame_id % 0 == 0: # only process every 60 frames
-            #     continues
 
             detection_results = inference_detector(det_model, cur_frame)
 
@@ -147,13 +138,15 @@ def main():
 
             keypoints = data_samples.pred_instances.keypoints
             keypoint_scores = data_samples.pred_instances.keypoint_scores
-
+            
             annotations_added = False
             visible_keypoints = 0
+            annotations_list = []
 
             for bbox, score, label, kpts, kpts_scores in zip(
                 bboxes, scores, labels, keypoints, keypoint_scores
             ):
+                visible_keypoints = 0
                 if score < bbox_thr:
                     continue
                 bbox_top_left_x, bbox_top_left_y = bbox[0], bbox[1]
@@ -183,9 +176,8 @@ def main():
                 ]
                 scale = [bbox_width / 200, bbox_height / 200]
 
-                frame_id_uniq = np.random.randint(0, 200000000)
-                while frame_id_uniq in uniq_id_list:
-                    frame_id_uniq = np.random.randint(0, 200000000)
+                frame_id_uniq = id_pool[frame_id_uniq_counter]
+                frame_id_uniq_counter += 1
                 kpts_flat = []
                 for pt, pt_score in zip(kpts, kpts_scores):
                     if pt_score > keypoint_thr:
@@ -207,47 +199,45 @@ def main():
                     "id": frame_id_uniq,
                 }
 
-                annotations = {
-                    "keypoints": kpts_flat,
-                    "num_keypoints": visible_keypoints,
-                    "area": float(area),
-                    "iscrowd": 0,
-                    "image_id": int(frame_id_uniq),
-                    "bbox": [float(i) for i in bbox],
-                    "center": [float(i) for i in center],
-                    "scale": [float(i) for i in scale],
-                    "category_id": 1,
-                    "id": int(ann_uniq_id),
-                }
-
                 if visible_keypoints >= min_num_keypoints_desired:
-                    img_anno_dict["annotations"].append(annotations)
-                    ann_uniq_id += 1
-                    annotations_added = True
+                    annotations = {
+                        "keypoints": kpts_flat,
+                        "num_keypoints": visible_keypoints,
+                        "area": float(area),
+                        "iscrowd": 0,
+                        "image_id": int(frame_id_uniq),
+                        "bbox": [float(i) for i in bbox],
+                        "center": [float(i) for i in center],
+                        "scale": [float(i) for i in scale],
+                        "category_id": 1,
+                        "id": int(ann_uniq_id),
+                    }
+                    annotations_list.append(annotations)
 
-                    raw_frame = out_dir + "/imgs/" + file_name
-                    cv2.imwrite(raw_frame, cur_frame)
-                    viz_frame = out_dir + "/viz/" + file_name[:-4] + "_vis.jpg"
-                    cv2.imwrite(viz_frame, frame)
+            if len(annotations_list) == len(bboxes):
+                for annotation in annotations_list:
+                    img_anno_dict['annotations'].append(annotation)
+                    ann_uniq_id += 1
+                raw_frame = out_dir + "/imgs/" + file_name
+                cv2.imwrite(raw_frame, cur_frame)
+                viz_frame = out_dir + "/viz/" + file_name[:-4] + "_vis.jpg"
+                cv2.imwrite(viz_frame, frame)
+                annotations_added = True        
             visible_keypoints = 0
             if annotations_added:
-                img_anno_dict["images"].append(images)
-                # extracted_frames_count += 1
-            # if extracted_frames_count >= 10:
-            #     break
+                img_anno_dict['images'].append(images)
 
         if (vid_idx + 1) % checkpoint_interval == 0:
             checkpoint_count += 1
-            print("Checkpointing at video: ", vid_idx + 1)
+            print(f"Checkpointing at video: {vid_idx+1}")
             save_checkpoint(img_anno_dict, out_json_file, checkpoint_count)
 
-    print("Number of images added to COCO json: ", len(img_anno_dict["images"]))
+    print(f"Number of images added to COCO json: {len(img_anno_dict['images'])}")
 
     with open(out_json_file, "w") as outfile:
         json.dump(img_anno_dict, outfile, indent=2)
 
     print("Time elapsed: ", time.time() - start_time)
-
 
 if __name__ == "__main__":
     main()

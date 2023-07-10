@@ -12,6 +12,8 @@ import time
 import cv2
 import mmcv
 import numpy as np
+from tqdm import tqdm
+
 from mmdet.apis import inference_detector, init_detector
 from mmpose.apis import inference_topdown
 from mmpose.apis import init_model as init_pose_estimator
@@ -51,7 +53,7 @@ def main():
     bbox_thr = args.bbox_thr
     checkpoint_interval = args.checkpoint_interval
     device = args.device
-    keypoint_thr = 0.35
+    keypoint_thr = 0.3
     min_num_keypoints_desired = 11
 
     os.makedirs(out_dir, exist_ok=True)
@@ -66,7 +68,7 @@ def main():
     pose_config = "C:\\Users\\Felipe Parodi\\Documents\\felipe_code\\MacTrack\\scripts\\pose_pseudolabel_230612\\hrnet_w48_macaque_256x192_3x.py"
     pose_checkpoint = "https://download.openmmlab.com/mmpose/animal/hrnet/hrnet_w48_macaque_256x192-9b34b02a_20210407.pth"
 
-    print(f"Output json file: {out_json_file}. \a\n Initializing NHP detection and pose estimation models ...")
+    print(f"Output json file: {out_json_file}. \nInitializing NHP detection and pose estimation models ...")
     det_model = init_detector(det_config, det_checkpoint, device=device)
     det_model.cfg = adapt_mmdet_pipeline(det_model.cfg)
     pose_estimator = init_pose_estimator(pose_config, pose_checkpoint, device=device)
@@ -89,19 +91,22 @@ def main():
     }
 
     video_list = os.listdir(vid_dir)
-    print(f"Successfully initialized models. Now loading {len(video_list)} videos ...")
+    print(f"\nSuccessfully initialized models. Now loading {len(video_list)} videos ...")
     uniq_id_list = []
     frame_id_uniq_counter = 0
     ann_uniq_id, checkpoint_count = int(0), int(0)
     id_pool = np.arange(0, 200_000)
     np.random.shuffle(id_pool)
-    for vid_idx, vid in enumerate(video_list):
+    
+    for vid_idx, vid in enumerate(tqdm(video_list)):
+    # for vid_idx, vid in enumerate(video_list):
         if not vid.endswith((".mp4", ".avi")):
             continue
         video = mmcv.VideoReader(vid_dir + vid)
-        print(vid)
+        print(f'\nStarting inference on {vid}.')
 
-        for frame_id, cur_frame in enumerate(video):
+        for frame_id, cur_frame in enumerate(tqdm(video)):
+        # for frame_id, cur_frame in enumerate(video):
 
             detection_results = inference_detector(det_model, cur_frame)
 
@@ -178,7 +183,7 @@ def main():
                 ]
                 scale = [bbox_width / 200, bbox_height / 200]
 
-                frame_id_uniq = id_pool[frame_id_uniq_counter]
+                frame_id_uniq = int(id_pool[frame_id_uniq_counter])
                 frame_id_uniq_counter += 1
                 kpts_flat = []
                 for pt, pt_score in zip(kpts, kpts_scores):
@@ -214,6 +219,8 @@ def main():
                         "category_id": 1,
                         "id": int(ann_uniq_id),
                     }
+                    # for key, value in annotations.items():
+                    #     print(f"{key}: {type(value)}")
                     annotations_list.append(annotations)
 
             if len(annotations_list) == len(bboxes):
@@ -227,6 +234,8 @@ def main():
                 annotations_added = True        
             visible_keypoints = 0
             if annotations_added:
+                # for key, value in images.items():
+                #     print(f"{key}: {type(value)}")
                 img_anno_dict['images'].append(images)
 
         if (vid_idx + 1) % checkpoint_interval == 0:

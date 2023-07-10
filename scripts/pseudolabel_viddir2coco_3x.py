@@ -54,6 +54,7 @@ def main():
     checkpoint_interval = args.checkpoint_interval
     device = args.device
     keypoint_thr = 0.5
+    min_num_keypoints_desired = 11
 
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(out_dir + "/imgs", exist_ok=True)
@@ -219,7 +220,7 @@ def main():
                     "id": int(ann_uniq_id),
                 }
 
-                if visible_keypoints > 10:
+                if visible_keypoints >= min_num_keypoints_desired:
                     img_anno_dict["annotations"].append(annotations)
                     ann_uniq_id += 1
                     annotations_added = True
@@ -231,7 +232,7 @@ def main():
             visible_keypoints = 0
             if annotations_added:
                 img_anno_dict["images"].append(images)
-                extracted_frames_count += 1
+                # extracted_frames_count += 1
             # if extracted_frames_count >= 10:
             #     break
 
